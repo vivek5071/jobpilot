@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# JobPilot
 
-## Getting Started
+Paste a job description → get your resume bullets rewritten to match it, streamed
+token-by-token → save the application to a kanban tracker. Built as a real tool for
+my own job hunt, and as a working demonstration of streaming-AI frontend patterns.
 
-First, run the development server:
+## Why this exists
+
+Tailoring a resume to every JD is the highest-leverage, most tedious part of job
+hunting. JobPilot automates the rewrite and keeps the pipeline organized — and it
+doubles as a reference implementation of the frontend skills AI products need:
+token streaming, interruptible generations, and optimistic local-first state.
+
+## Architecture decisions
+
+**Streaming over request/response.** The tailor endpoint returns a `ReadableStream`
+consumed with `fetch` + `getReader()` on the client. Tokens render as they arrive,
+the generation is cancellable mid-stream via `AbortController` (partial output is
+kept, matching how users actually think about "stop"), and errors surface with a
+retry path. No streaming library — the platform primitives are enough.
+
+**Demo mode as a first-class citizen.** Without `ANTHROPIC_API_KEY`, the server
+streams a realistic canned result token-by-token (with naive keyword extraction
+from the JD). The deployed demo costs nothing to run, never breaks when a key
+expires, and exercises the identical client code path as live mode. With a key,
+the same route streams from the Anthropic API (`claude-opus-4-8`). The response's
+`X-Tailor-Mode` header tells you which you got.
+
+**Local-first storage.** Resume text and tracked applications live in
+`localStorage`. For a single-user tool this removes auth, a database, and a whole
+class of privacy questions — your resume never leaves your browser in demo mode.
+The store module is 20 lines and swappable for a real backend when multi-device
+sync matters.
+
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev            # demo mode
+ANTHROPIC_API_KEY=sk-... npm run dev   # live tailoring
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Roadmap
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Drag-and-drop on the board (buttons work today; DnD is polish)
+- Cmd+K command palette
+- Virtualized board columns for hundreds of applications
+- Follow-up reminders per application
