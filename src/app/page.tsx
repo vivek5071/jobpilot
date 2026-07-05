@@ -93,9 +93,14 @@ export default function TailorPage() {
     <main className="mx-auto max-w-5xl p-6">
       <header className="mb-6 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold">JobPilot</h1>
-        <Link href="/board" className="text-sm underline underline-offset-4 hover:opacity-70">
-          Tracker board →
-        </Link>
+        <div className="flex items-center gap-4 text-sm">
+          <kbd className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs text-neutral-500 dark:border-neutral-700">
+            ⌘K
+          </kbd>
+          <Link href="/board" className="underline underline-offset-4 hover:opacity-70">
+            Tracker board →
+          </Link>
+        </div>
       </header>
 
       <div className="grid gap-6 md:grid-cols-2">

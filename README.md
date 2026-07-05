@@ -40,9 +40,14 @@ npm run dev            # demo mode
 ANTHROPIC_API_KEY=sk-... npm run dev   # live tailoring
 ```
 
+**Zero-dependency interactions.** Board drag-and-drop uses the native HTML5 DnD
+API, with the move buttons kept as the keyboard- and touch-accessible path to the
+same action. The ⌘K command palette (navigation + fuzzy search over tracked
+applications) is ~100 lines with proper combobox/listbox semantics, focus
+restoration, and Escape handling — no cmdk, no dnd-kit.
+
 ## Roadmap
 
-- Drag-and-drop on the board (buttons work today; DnD is polish)
-- Cmd+K command palette
 - Virtualized board columns for hundreds of applications
 - Follow-up reminders per application
+- Real DB + auth when multi-device sync matters
