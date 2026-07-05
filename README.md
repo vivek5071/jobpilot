@@ -1,5 +1,7 @@
 # JobPilot
 
+**Live demo: [jobpilot-sigma-orcin.vercel.app](https://jobpilot-sigma-orcin.vercel.app)**
+
 Paste a job description → get your resume bullets rewritten to match it, streamed
 token-by-token → save the application to a kanban tracker. Built as a real tool for
 my own job hunt, and as a working demonstration of streaming-AI frontend patterns.
