@@ -15,14 +15,84 @@ export async function POST(req: Request) {
     return new Response("resume and jobDescription are required", { status: 400 });
   }
 
-  const stream = process.env.ANTHROPIC_API_KEY
-    ? await realStream(resume, jobDescription)
-    : demoStream(jobDescription);
+  // Provider-agnostic: OpenRouter (any OpenAI-compatible model, free tiers
+  // work) > Anthropic > keyless demo. The client only sees a text stream.
+  const mode = process.env.OPENROUTER_API_KEY
+    ? "live-openrouter"
+    : process.env.ANTHROPIC_API_KEY
+      ? "live-anthropic"
+      : "demo";
+
+  const stream =
+    mode === "live-openrouter"
+      ? await openRouterStream(resume, jobDescription)
+      : mode === "live-anthropic"
+        ? await realStream(resume, jobDescription)
+        : demoStream(jobDescription);
 
   return new Response(stream, {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
-      "X-Tailor-Mode": process.env.ANTHROPIC_API_KEY ? "live" : "demo",
+      "X-Tailor-Mode": mode,
+    },
+  });
+}
+
+function userPrompt(resume: string, jobDescription: string) {
+  return `<resume>\n${resume}\n</resume>\n\n<job_description>\n${jobDescription}\n</job_description>`;
+}
+
+// OpenRouter: OpenAI-compatible chat completions over SSE, plain fetch.
+async function openRouterStream(resume: string, jobDescription: string) {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: process.env.OPENROUTER_MODEL ?? "meta-llama/llama-3.3-70b-instruct:free",
+      stream: true,
+      messages: [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: userPrompt(resume, jobDescription) },
+      ],
+    }),
+  });
+
+  if (!res.ok || !res.body) {
+    throw new Error(`OpenRouter error ${res.status}: ${await res.text()}`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let buffer = "";
+
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const line of lines) {
+            const data = line.trim().replace(/^data: ?/, "");
+            if (!data || data === "[DONE]" || !line.startsWith("data:")) continue;
+            const text = JSON.parse(data).choices?.[0]?.delta?.content;
+            if (text) controller.enqueue(encoder.encode(text));
+          }
+        }
+        controller.close();
+      } catch (err) {
+        controller.error(err);
+      }
+    },
+    cancel() {
+      void reader.cancel();
     },
   });
 }
@@ -36,7 +106,7 @@ async function realStream(resume: string, jobDescription: string) {
     messages: [
       {
         role: "user",
-        content: `<resume>\n${resume}\n</resume>\n\n<job_description>\n${jobDescription}\n</job_description>`,
+        content: userPrompt(resume, jobDescription),
       },
     ],
   });
@@ -113,5 +183,5 @@ function demoResult(kw: string[]): string {
 
 I've spent 5 years building exactly this kind of product: ${a}/${b} admin consoles and dashboards where ${c} and reliability matter more than flash. Most recently I built the Library Module of Samsung Knox Manage, an enterprise device-management console. I'd love to bring that depth to your team.
 
-*(demo mode — set ANTHROPIC_API_KEY for live tailoring)*`;
+*(demo mode — set OPENROUTER_API_KEY or ANTHROPIC_API_KEY for live tailoring)*`;
 }

@@ -21,12 +21,18 @@ the generation is cancellable mid-stream via `AbortController` (partial output i
 kept, matching how users actually think about "stop"), and errors surface with a
 retry path. No streaming library — the platform primitives are enough.
 
-**Demo mode as a first-class citizen.** Without `ANTHROPIC_API_KEY`, the server
-streams a realistic canned result token-by-token (with naive keyword extraction
-from the JD). The deployed demo costs nothing to run, never breaks when a key
-expires, and exercises the identical client code path as live mode. With a key,
-the same route streams from the Anthropic API (`claude-opus-4-8`). The response's
-`X-Tailor-Mode` header tells you which you got.
+**Demo mode as a first-class citizen.** Without an API key, the server streams
+a realistic canned result token-by-token (with naive keyword extraction from
+the JD). The deployed demo costs nothing to run, never breaks when a key
+expires, and exercises the identical client code path as live mode. The
+response's `X-Tailor-Mode` header tells you which you got.
+
+**Provider-agnostic live mode.** The client only ever sees a plain text
+stream, so the LLM behind it is swappable per env var — no SDK lock-in:
+`OPENROUTER_API_KEY` streams from any OpenAI-compatible model on OpenRouter
+(free-tier models work; pick one with `OPENROUTER_MODEL`), or
+`ANTHROPIC_API_KEY` streams from the Anthropic API (`claude-opus-4-8`).
+OpenRouter takes precedence when both are set.
 
 **Local-first storage.** Resume text and tracked applications live in
 `localStorage`. For a single-user tool this removes auth, a database, and a whole
@@ -38,9 +44,13 @@ sync matters.
 
 ```bash
 npm install
-npm run dev            # demo mode
-ANTHROPIC_API_KEY=sk-... npm run dev   # live tailoring
+npm run dev                              # demo mode, no key needed
+OPENROUTER_API_KEY=sk-or-... npm run dev # live via OpenRouter (free models work)
+ANTHROPIC_API_KEY=sk-ant-... npm run dev # live via Anthropic
 ```
+
+Optional: `OPENROUTER_MODEL` overrides the default
+(`meta-llama/llama-3.3-70b-instruct:free`).
 
 **Zero-dependency interactions.** Board drag-and-drop uses the native HTML5 DnD
 API, with the move buttons kept as the keyboard- and touch-accessible path to the
