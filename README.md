@@ -32,7 +32,9 @@ stream, so the LLM behind it is swappable per env var — no SDK lock-in:
 `OPENROUTER_API_KEY` streams from any OpenAI-compatible model on OpenRouter
 (free-tier models work; pick one with `OPENROUTER_MODEL`), or
 `ANTHROPIC_API_KEY` streams from the Anthropic API (`claude-opus-4-8`).
-OpenRouter takes precedence when both are set.
+OpenRouter takes precedence when both are set. Visitors can also paste their
+own OpenRouter key in the UI (BYOK): it lives in `localStorage`, rides along
+per request, and the server uses it without ever storing or logging it.
 
 **Local-first storage.** Resume text and tracked applications live in
 `localStorage`. For a single-user tool this removes auth, a database, and a whole

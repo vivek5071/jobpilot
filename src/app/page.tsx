@@ -6,6 +6,7 @@ import { loadApplications, saveApplications } from "@/lib/store";
 import type { Application } from "@/lib/types";
 
 const RESUME_KEY = "jobpilot.resume";
+const API_KEY_KEY = "jobpilot.openrouter_key";
 
 type Phase = "idle" | "streaming" | "done" | "error";
 
@@ -15,6 +16,7 @@ export default function TailorPage() {
   const [output, setOutput] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
   const [saved, setSaved] = useState(false);
@@ -23,11 +25,17 @@ export default function TailorPage() {
 
   useEffect(() => {
     setResume(localStorage.getItem(RESUME_KEY) ?? "");
+    setApiKey(localStorage.getItem(API_KEY_KEY) ?? "");
   }, []);
 
   useEffect(() => {
     if (resume) localStorage.setItem(RESUME_KEY, resume);
   }, [resume]);
+
+  useEffect(() => {
+    if (apiKey) localStorage.setItem(API_KEY_KEY, apiKey);
+    else localStorage.removeItem(API_KEY_KEY);
+  }, [apiKey]);
 
   // Follow the stream as it grows
   useEffect(() => {
@@ -47,7 +55,11 @@ export default function TailorPage() {
       const res = await fetch("/api/tailor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume, jobDescription: jd }),
+        body: JSON.stringify({
+          resume,
+          jobDescription: jd,
+          ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+        }),
         signal: controller.signal,
       });
       if (!res.ok || !res.body) throw new Error(await res.text());
@@ -68,7 +80,7 @@ export default function TailorPage() {
         setPhase("error");
       }
     }
-  }, [resume, jd]);
+  }, [resume, jd, apiKey]);
 
   const cancel = () => abortRef.current?.abort();
 
@@ -122,6 +134,23 @@ export default function TailorPage() {
               onChange={(e) => setJd(e.target.value)}
               placeholder="Paste the JD you're applying to."
               className="h-56 resize-y rounded-md border border-neutral-300 bg-transparent p-3 text-sm dark:border-neutral-700"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium">
+              OpenRouter API key{" "}
+              <span className="font-normal text-neutral-400">
+                (optional — enables live tailoring, stays in your browser)
+              </span>
+            </span>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="sk-or-… — leave empty for demo mode"
+              autoComplete="off"
+              className="rounded-md border border-neutral-300 bg-transparent p-2 text-sm dark:border-neutral-700"
             />
           </label>
 

@@ -9,26 +9,32 @@ Given a candidate's resume and a job description, produce:
 Output plain markdown: a "## Tailored bullets" section and a "## Cover note" section. No preamble.`;
 
 export async function POST(req: Request) {
-  const { resume, jobDescription } = await req.json();
+  const { resume, jobDescription, apiKey } = await req.json();
 
   if (!resume?.trim() || !jobDescription?.trim()) {
     return new Response("resume and jobDescription are required", { status: 400 });
   }
 
-  // Provider-agnostic: OpenRouter (any OpenAI-compatible model, free tiers
-  // work) > Anthropic > keyless demo. The client only sees a text stream.
-  const mode = process.env.OPENROUTER_API_KEY
+  // BYOK: a visitor-supplied OpenRouter key is used for this request only —
+  // never stored or logged. Precedence: BYOK > env OpenRouter > env
+  // Anthropic > keyless demo. The client only sees a text stream.
+  const byok =
+    typeof apiKey === "string" && apiKey.trim().length > 0 && apiKey.length <= 256
+      ? apiKey.trim()
+      : undefined;
+  const openRouterKey = byok ?? process.env.OPENROUTER_API_KEY;
+
+  const mode = openRouterKey
     ? "live-openrouter"
     : process.env.ANTHROPIC_API_KEY
       ? "live-anthropic"
       : "demo";
 
-  const stream =
-    mode === "live-openrouter"
-      ? await openRouterStream(resume, jobDescription)
-      : mode === "live-anthropic"
-        ? await realStream(resume, jobDescription)
-        : demoStream(jobDescription);
+  const stream = openRouterKey
+    ? await openRouterStream(resume, jobDescription, openRouterKey)
+    : mode === "live-anthropic"
+      ? await realStream(resume, jobDescription)
+      : demoStream(jobDescription);
 
   return new Response(stream, {
     headers: {
@@ -43,11 +49,11 @@ function userPrompt(resume: string, jobDescription: string) {
 }
 
 // OpenRouter: OpenAI-compatible chat completions over SSE, plain fetch.
-async function openRouterStream(resume: string, jobDescription: string) {
+async function openRouterStream(resume: string, jobDescription: string, key: string) {
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -183,5 +189,5 @@ function demoResult(kw: string[]): string {
 
 I've spent 5 years building exactly this kind of product: ${a}/${b} admin consoles and dashboards where ${c} and reliability matter more than flash. Most recently I built the Library Module of Samsung Knox Manage, an enterprise device-management console. I'd love to bring that depth to your team.
 
-*(demo mode — set OPENROUTER_API_KEY or ANTHROPIC_API_KEY for live tailoring)*`;
+*(demo mode — paste an OpenRouter key in the form, or set OPENROUTER_API_KEY / ANTHROPIC_API_KEY on the server, for live tailoring)*`;
 }
