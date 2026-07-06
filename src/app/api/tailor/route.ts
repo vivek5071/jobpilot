@@ -30,11 +30,16 @@ export async function POST(req: Request) {
       ? "live-anthropic"
       : "demo";
 
-  const stream = openRouterKey
-    ? await openRouterStream(resume, jobDescription, openRouterKey)
-    : mode === "live-anthropic"
-      ? await realStream(resume, jobDescription)
-      : demoStream(jobDescription);
+  let stream: ReadableStream<Uint8Array>;
+  try {
+    stream = openRouterKey
+      ? await openRouterStream(resume, jobDescription, openRouterKey)
+      : mode === "live-anthropic"
+        ? await realStream(resume, jobDescription)
+        : demoStream(jobDescription);
+  } catch (err) {
+    stream = errorStream(err);
+  }
 
   return new Response(stream, {
     headers: {
@@ -57,7 +62,7 @@ async function openRouterStream(resume: string, jobDescription: string, key: str
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: process.env.OPENROUTER_MODEL ?? "meta-llama/llama-3.3-70b-instruct:free",
+      model: process.env.OPENROUTER_MODEL ?? "openrouter/free",
       stream: true,
       messages: [
         { role: "system", content: SYSTEM },
@@ -99,6 +104,21 @@ async function openRouterStream(resume: string, jobDescription: string, key: str
     },
     cancel() {
       void reader.cancel();
+    },
+  });
+}
+
+function errorStream(err: unknown) {
+  const message = err instanceof Error ? err.message : "Unknown tailoring error";
+  const text = `## Tailoring failed
+
+${message}
+
+Try again without an API key to use demo mode, or create a fresh OpenRouter key and use a free model/router.`;
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(text));
+      controller.close();
     },
   });
 }
