@@ -199,15 +199,15 @@ function demoResult(kw: string[]): string {
   const c = kw.find((k) => CONCEPTS.includes(k.toLowerCase())) ?? "performance";
   return `## Tailored bullets
 
-- Built and shipped enterprise admin console modules in ${a} and ${b}, covering install/update/scheduling flows used across large device fleets — directly matching your ${a} product surface.
-- Cut initial load time 40% on high-traffic pages via code splitting, lazy loading, and list virtualization (react-window) — the same ${c} levers this role calls out.
-- Integrated complex REST APIs with robust loading, error, and empty states, pagination, and role-aware actions across admin workflows.
-- Owned component-driven development with a shared in-house component library and Storybook, keeping UI consistent across four product teams.
-- Led code reviews for high-impact modules; trusted with release-critical bug fixes under tight timelines.
+- Built admin console modules in ${a} and ${b}, covering install, update and scheduling flows — the product surface this role describes.
+- Cut initial load time 40% on high-traffic pages with code splitting, lazy loading and list virtualization, which are the ${c} levers the job description calls out.
+- Integrated REST APIs with real loading, error and empty states, plus pagination and role-aware actions.
+- Worked component-first against a shared library, so the UI stayed consistent as the team grew.
+- Reviewed code on high-impact modules and took release-critical fixes under deadline.
 
 ## Cover note
 
-I've spent 5 years building exactly this kind of product: ${a}/${b} admin consoles and dashboards where ${c} and reliability matter more than flash. Most recently I built the Library Module of Samsung Knox Manage, an enterprise device-management console. I'd love to bring that depth to your team.
+I've spent five years on this kind of product: ${a}/${b} consoles and dashboards where ${c} and reliability matter more than flash. I'd like to bring that to your team.
 
-*(demo mode — paste an OpenRouter key in the form, or set OPENROUTER_API_KEY / ANTHROPIC_API_KEY on the server, for live tailoring)*`;
+*(demo mode — sample output, not a real candidate. Paste an OpenRouter key in the form, or set OPENROUTER_API_KEY / ANTHROPIC_API_KEY on the server, for live tailoring)*`;
 }
