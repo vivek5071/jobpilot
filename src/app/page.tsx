@@ -8,6 +8,12 @@ import type { Application } from "@/lib/types";
 const RESUME_KEY = "jobpilot.resume";
 const API_KEY_KEY = "jobpilot.openrouter_key";
 
+// OpenRouter sends SSE comment lines (": OPENROUTER PROCESSING") while a free
+// model is queued. The route filters those out, so bytes arrive on the wire but
+// nothing is enqueued and read() can wait forever. Give it a deadline.
+// ponytail: one flat idle timeout. Per-model budgets if a slow model needs longer.
+const IDLE_TIMEOUT_MS = 45_000;
+
 type Phase = "idle" | "streaming" | "done" | "error";
 
 export default function TailorPage() {
@@ -46,6 +52,7 @@ export default function TailorPage() {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    let timedOut = false;
     setOutput("");
     setError("");
     setSaved(false);
@@ -66,14 +73,33 @@ export default function TailorPage() {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
+      let received = 0;
       for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        setOutput((prev) => prev + decoder.decode(value, { stream: true }));
+        const idle = setTimeout(() => {
+          timedOut = true;
+          controller.abort();
+        }, IDLE_TIMEOUT_MS);
+        let chunk;
+        try {
+          chunk = await reader.read();
+        } finally {
+          clearTimeout(idle);
+        }
+        if (chunk.done) break;
+        received += chunk.value.length;
+        setOutput((prev) => prev + decoder.decode(chunk.value, { stream: true }));
+      }
+      if (received === 0) {
+        throw new Error("The model returned nothing. Try again, or switch models.");
       }
       setPhase("done");
     } catch (err) {
-      if (controller.signal.aborted) {
+      if (timedOut) {
+        setError(
+          `No response for ${IDLE_TIMEOUT_MS / 1000}s. Free models queue under load — try again, or use a paid model.`,
+        );
+        setPhase("error");
+      } else if (controller.signal.aborted) {
         setPhase("done"); // user cancelled — keep partial output
       } else {
         setError(err instanceof Error ? err.message : "Something went wrong");
